@@ -6,24 +6,25 @@
 <title>Calculator</title>
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1e1f26; font-family: system-ui, sans-serif; }
-  .calc { width: 320px; padding: 20px; border-radius: 20px; background: #2b2d38; box-shadow: 0 20px 40px #0006; }
+  .calc { width: min(100% - 24px, 360px); box-sizing: border-box; padding: 20px; border-radius: 20px; background: #2b2d38; box-shadow: 0 20px 40px #0006; }
   input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: #15161c; color: #fff; font-size: 1.6rem; text-align: right; }
-  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: #9aa0b5; text-align: right; font-size: 1.1rem; }
+  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: #9aa0b5; text-align: right; font-size: 1.1rem; overflow-wrap: anywhere; }
   output.error { color: #ff7b7b; }
   .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   button { padding: 16px 0; border: 0; border-radius: 12px; background: #3a3d4d; color: #fff; font-size: 1.2rem; cursor: pointer; }
   button:hover { filter: brightness(1.2); }
+  button:active { filter: brightness(0.9); }
   button:focus-visible { outline: 2px solid #ffb35b; }
   .op { background: #4b5280; }
-  .eq { background: #ff8a5b; grid-column: span 4; }
+  .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 4; }
 </style>
 </head>
 <body>
-<main class="calc">
-  <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" autofocus>
+<main class="calc" aria-label="Calculator">
+  <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" aria-describedby="result">
   <output id="result" aria-live="polite"></output>
   <div class="keys">
-    <button data-act="clear" class="op">C</button>
+    <button data-act="clear" class="op" aria-label="Clear">C</button>
     <button data-act="back" class="op" aria-label="Backspace">⌫</button>
     <button class="op">(</button><button class="op">)</button>
     <button>7</button><button>8</button><button>9</button><button class="op" aria-label="Divide">÷</button>
@@ -37,17 +38,22 @@
 <script>
   const input = document.getElementById('expr');
   const out = document.getElementById('result');
+  // On touch screens the keypad is the keyboard; focusing the input would pop the OS keyboard over it.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  if (touch) input.readOnly = true; else input.focus();
 
   function show(text, isError) {
     out.textContent = text;
     out.classList.toggle('error', isError);
+    input.setAttribute('aria-invalid', isError);
   }
 
   function run() {
     if (!input.value.trim()) return show('', false);
     try {
-      input.value = format(evaluate(input.value));
-      show('', false);
+      const expr = input.value;
+      input.value = format(evaluate(expr));
+      show(`${expr} = ${input.value}`, false); // keeps the expression visible and announces the result
     } catch (e) {
       show(e.message, true);
     }
@@ -62,7 +68,7 @@
     else if (act === 'clear') { input.value = ''; show('', false); }
     else if (act === 'back') input.value = input.value.slice(0, -1);
     else input.value += b.textContent;
-    input.focus();
+    if (!touch) input.focus();
   });
 
   input.addEventListener('input', () => show('', false));
