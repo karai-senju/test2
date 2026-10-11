@@ -5,22 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calculator</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1e1f26; font-family: system-ui, sans-serif; }
-  .calc { width: min(100% - 24px, 360px); box-sizing: border-box; padding: 20px; border-radius: 20px; background: #2b2d38; box-shadow: 0 20px 40px #0006; }
-  input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: #15161c; color: #fff; font-size: 1.6rem; text-align: right; }
-  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: #9aa0b5; text-align: right; font-size: 1.1rem; overflow-wrap: anywhere; }
-  output.error { color: #ff7b7b; }
+  /* light-dark(light, dark) follows color-scheme: the OS setting by default, or the toggle's choice. */
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#eef0f5, #1e1f26);
+    --panel: light-dark(#ffffff, #2b2d38);
+    --field: light-dark(#f3f4f8, #15161c);
+    --text: light-dark(#1e1f26, #ffffff);
+    --muted: light-dark(#5b6075, #9aa0b5);
+    --error: light-dark(#c62828, #ff7b7b);
+    --key: light-dark(#e4e6ee, #3a3d4d);
+    --op: light-dark(#d9dcf5, #4b5280);
+    --op-text: light-dark(#2f3570, #ffffff);
+    --focus: light-dark(#b45309, #ffb35b);
+    --shadow: light-dark(#0002, #0006);
+  }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); font-family: system-ui, sans-serif; }
+  .calc { width: min(100% - 24px, 360px); box-sizing: border-box; padding: 20px; border-radius: 20px; background: var(--panel); box-shadow: 0 20px 40px var(--shadow); }
+  input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: var(--field); color: var(--text); font-size: 1.6rem; text-align: right; }
+  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: var(--muted); text-align: right; font-size: 1.1rem; overflow-wrap: anywhere; }
+  output.error { color: var(--error); }
   .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  button { padding: 16px 0; border: 0; border-radius: 12px; background: #3a3d4d; color: #fff; font-size: 1.2rem; cursor: pointer; }
+  button { padding: 16px 0; border: 0; border-radius: 12px; background: var(--key); color: var(--text); font-size: 1.2rem; cursor: pointer; }
   button:hover { filter: brightness(1.2); }
   button:active { filter: brightness(0.9); }
-  button:focus-visible { outline: 2px solid #ffb35b; }
-  .op { background: #4b5280; }
+  button:focus-visible { outline: 2px solid var(--focus); }
+  .op { background: var(--op); color: var(--op-text); }
   .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 4; }
+  .theme { display: block; margin: 0 0 12px auto; padding: 10px 14px; font-size: 1rem; }
 </style>
 </head>
 <body>
 <main class="calc" aria-label="Calculator">
+  <button id="theme" class="theme"></button>
   <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" aria-describedby="result">
   <output id="result" aria-live="polite"></output>
   <div class="keys">
@@ -41,6 +58,18 @@
   // On touch screens the keypad is the keyboard; focusing the input would pop the OS keyboard over it.
   const touch = matchMedia('(pointer: coarse)').matches;
   if (touch) input.readOnly = true; else input.focus();
+
+  const themeBtn = document.getElementById('theme');
+  function setTheme(t) {
+    document.documentElement.style.colorScheme = t;
+    themeBtn.textContent = t === 'dark' ? '☀ Light' : '☾ Dark';
+    themeBtn.setAttribute('aria-label', `Switch to ${t === 'dark' ? 'light' : 'dark'} mode`);
+  }
+  setTheme(localStorage.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  themeBtn.addEventListener('click', () => {
+    localStorage.theme = themeBtn.textContent.includes('Light') ? 'light' : 'dark';
+    setTheme(localStorage.theme);
+  });
 
   function show(text, isError) {
     out.textContent = text;
