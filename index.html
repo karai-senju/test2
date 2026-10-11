@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculator</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1e1f26; font-family: system-ui, sans-serif; }
+  .calc { width: 320px; padding: 20px; border-radius: 20px; background: #2b2d38; box-shadow: 0 20px 40px #0006; }
+  input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: #15161c; color: #fff; font-size: 1.6rem; text-align: right; }
+  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: #9aa0b5; text-align: right; font-size: 1.1rem; }
+  output.error { color: #ff7b7b; }
+  .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  button { padding: 16px 0; border: 0; border-radius: 12px; background: #3a3d4d; color: #fff; font-size: 1.2rem; cursor: pointer; }
+  button:hover { filter: brightness(1.2); }
+  button:focus-visible { outline: 2px solid #ffb35b; }
+  .op { background: #4b5280; }
+  .eq { background: #ff8a5b; grid-column: span 4; }
+</style>
+</head>
+<body>
+<main class="calc">
+  <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" autofocus>
+  <output id="result" aria-live="polite"></output>
+  <div class="keys">
+    <button data-act="clear" class="op">C</button>
+    <button data-act="back" class="op" aria-label="Backspace">⌫</button>
+    <button class="op">(</button><button class="op">)</button>
+    <button>7</button><button>8</button><button>9</button><button class="op" aria-label="Divide">÷</button>
+    <button>4</button><button>5</button><button>6</button><button class="op" aria-label="Multiply">×</button>
+    <button>1</button><button>2</button><button>3</button><button class="op" aria-label="Minus">−</button>
+    <button>0</button><button>.</button><button class="op" aria-label="Power">^</button><button class="op" aria-label="Plus">+</button>
+    <button data-act="eq" class="eq">=</button>
+  </div>
+</main>
+<script src="calc.js"></script>
+<script>
+  const input = document.getElementById('expr');
+  const out = document.getElementById('result');
+
+  function show(text, isError) {
+    out.textContent = text;
+    out.classList.toggle('error', isError);
+  }
+
+  function run() {
+    if (!input.value.trim()) return show('', false);
+    try {
+      input.value = format(evaluate(input.value));
+      show('', false);
+    } catch (e) {
+      show(e.message, true);
+    }
+  }
+
+  document.querySelector('.keys').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const act = b.dataset.act;
+    show('', false);
+    if (act === 'eq') run();
+    else if (act === 'clear') { input.value = ''; show('', false); }
+    else if (act === 'back') input.value = input.value.slice(0, -1);
+    else input.value += b.textContent;
+    input.focus();
+  });
+
+  input.addEventListener('input', () => show('', false));
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); run(); }
+    if (e.key === 'Escape') { input.value = ''; show('', false); }
+  });
+</script>
+</body>
+</html>
