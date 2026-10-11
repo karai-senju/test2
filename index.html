@@ -33,6 +33,20 @@
   .op { background: var(--op); color: var(--op-text); }
   .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 4; }
   .theme { display: block; margin: 0 0 12px auto; padding: 10px 14px; font-size: 1rem; }
+
+  /* Motion: short and never blocking input. */
+  body, .calc, input, button { transition: background-color .2s, color .2s, filter .15s, transform .1s; }
+  .calc { animation: rise .4s ease-out; }
+  button:hover { transform: translateY(-2px); }
+  button:active { transform: scale(.94); }
+  output.pop { animation: pop .2s ease-out; }
+  output.pop.error { animation: shake .3s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; transform: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -75,6 +89,9 @@
     out.textContent = text;
     out.classList.toggle('error', isError);
     input.setAttribute('aria-invalid', isError);
+    // Re-trigger the pop/shake animation on every new result.
+    out.classList.remove('pop');
+    if (text) { void out.offsetWidth; out.classList.add('pop'); }
   }
 
   function run() {
