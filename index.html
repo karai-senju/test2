@@ -5,25 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calculator</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #1e1f26; font-family: system-ui, sans-serif; }
-  .calc { width: 320px; padding: 20px; border-radius: 20px; background: #2b2d38; box-shadow: 0 20px 40px #0006; }
-  input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: #15161c; color: #fff; font-size: 1.6rem; text-align: right; }
-  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: #9aa0b5; text-align: right; font-size: 1.1rem; }
-  output.error { color: #ff7b7b; }
+  /* light-dark(light, dark) follows color-scheme: the OS setting by default, or the toggle's choice. */
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#eef0f5, #1e1f26);
+    --panel: light-dark(#ffffff, #2b2d38);
+    --field: light-dark(#f3f4f8, #15161c);
+    --text: light-dark(#1e1f26, #ffffff);
+    --muted: light-dark(#5b6075, #9aa0b5);
+    --error: light-dark(#c62828, #ff7b7b);
+    --key: light-dark(#e4e6ee, #3a3d4d);
+    --op: light-dark(#d9dcf5, #4b5280);
+    --op-text: light-dark(#2f3570, #ffffff);
+    --focus: light-dark(#b45309, #ffb35b);
+    --shadow: light-dark(#0002, #0006);
+  }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); font-family: system-ui, sans-serif; }
+  .calc { width: min(100% - 24px, 360px); box-sizing: border-box; padding: 20px; border-radius: 20px; background: var(--panel); box-shadow: 0 20px 40px var(--shadow); }
+  input { width: 100%; box-sizing: border-box; padding: 12px; border: 0; border-radius: 10px; background: var(--field); color: var(--text); font-size: 1.6rem; text-align: right; }
+  output { display: block; min-height: 1.5em; margin: 8px 4px 14px; color: var(--muted); text-align: right; font-size: 1.1rem; overflow-wrap: anywhere; }
+  output.error { color: var(--error); }
   .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  button { padding: 16px 0; border: 0; border-radius: 12px; background: #3a3d4d; color: #fff; font-size: 1.2rem; cursor: pointer; }
+  button { padding: 16px 0; border: 0; border-radius: 12px; background: var(--key); color: var(--text); font-size: 1.2rem; cursor: pointer; }
   button:hover { filter: brightness(1.2); }
-  button:focus-visible { outline: 2px solid #ffb35b; }
-  .op { background: #4b5280; }
-  .eq { background: #ff8a5b; grid-column: span 4; }
+  button:active { filter: brightness(0.9); }
+  button:focus-visible { outline: 2px solid var(--focus); }
+  .op { background: var(--op); color: var(--op-text); }
+  .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 4; }
+  .theme { display: block; margin: 0 0 12px auto; padding: 10px 14px; font-size: 1rem; }
+
+  /* Motion: never blocks input; .bloom is pointer-events: none. */
+  body, .calc, input, button { transition: background-color .2s, color .2s, filter .15s, transform .15s cubic-bezier(.34, 1.56, .64, 1); }
+  .calc { animation: rise .7s cubic-bezier(.34, 1.56, .64, 1); }
+  button:hover { transform: translateY(-3px) scale(1.05); }
+  button:active { transform: scale(.88); }
+  output.pop { animation: pop .4s cubic-bezier(.34, 1.56, .64, 1); }
+  output.pop.error { animation: shake .4s; }
+  @keyframes rise { from { opacity: 0; transform: scale(.4) rotate(-12deg); } }
+  @keyframes pop { from { opacity: 0; transform: scale(.5); } }
+  @keyframes shake { 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
+
+  /* Flower that blooms from a point: petals rotated around the centre, see bloom() below. */
+  .bloom { position: fixed; z-index: 10; pointer-events: none; scale: var(--s); }
+  .bloom i { position: absolute; left: -10px; top: -44px; width: 20px; height: 44px; border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+    background: linear-gradient(hsl(var(--h) 95% 75%), hsl(calc(var(--h) + 40) 95% 58%)); transform-origin: 50% 100%;
+    transform: rotate(var(--r)); animation: bloom 1.1s ease-out forwards; }
+  .bloom::after { content: ''; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%;
+    background: #ffd54a; box-shadow: 0 0 12px #ffd54a; animation: bloom-core 1.1s ease-out forwards; }
+  @keyframes bloom {
+    0% { opacity: 0; transform: rotate(var(--r)) scale(0); }
+    30% { opacity: 1; }
+    55% { transform: rotate(calc(var(--r) + 25deg)) scale(1.1); }
+    100% { opacity: 0; transform: rotate(calc(var(--r) + 60deg)) translateY(-24px) scale(1.3); }
+  }
+  @keyframes bloom-core { 0% { scale: 0; } 40% { scale: 1.3; opacity: 1; } 100% { scale: .6; opacity: 0; } }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes fade { 0%, 100% { opacity: 0; } 40% { opacity: 1; } }
+
+  /* Reduced motion: keep the colour and fades, drop the movement. */
+  @media (prefers-reduced-motion: reduce) {
+    button:hover, button:active { transform: none; }
+    .calc, output.pop, output.pop.error { animation: fade-in .3s; }
+    .bloom i, .bloom::after { animation-name: fade; }
+  }
 </style>
 </head>
 <body>
-<main class="calc">
-  <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" autofocus>
+<main class="calc" aria-label="Calculator">
+  <button id="theme" class="theme"></button>
+  <input id="expr" aria-label="Expression" autocomplete="off" inputmode="decimal" aria-describedby="result">
   <output id="result" aria-live="polite"></output>
   <div class="keys">
-    <button data-act="clear" class="op">C</button>
+    <button data-act="clear" class="op" aria-label="Clear">C</button>
     <button data-act="back" class="op" aria-label="Backspace">⌫</button>
     <button class="op">(</button><button class="op">)</button>
     <button>7</button><button>8</button><button>9</button><button class="op" aria-label="Divide">÷</button>
@@ -37,17 +90,54 @@
 <script>
   const input = document.getElementById('expr');
   const out = document.getElementById('result');
+  // On touch screens the keypad is the keyboard; focusing the input would pop the OS keyboard over it.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  if (touch) input.readOnly = true; else input.focus();
+
+  const themeBtn = document.getElementById('theme');
+  function setTheme(t) {
+    document.documentElement.style.colorScheme = t;
+    themeBtn.textContent = t === 'dark' ? '☀ Light' : '☾ Dark';
+    themeBtn.setAttribute('aria-label', `Switch to ${t === 'dark' ? 'light' : 'dark'} mode`);
+  }
+  setTheme(localStorage.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  themeBtn.addEventListener('click', () => {
+    localStorage.theme = themeBtn.textContent.includes('Light') ? 'light' : 'dark';
+    setTheme(localStorage.theme);
+  });
 
   function show(text, isError) {
     out.textContent = text;
     out.classList.toggle('error', isError);
+    input.setAttribute('aria-invalid', isError);
+    // Re-trigger the pop/shake animation on every new result.
+    out.classList.remove('pop');
+    if (text) { void out.offsetWidth; out.classList.add('pop'); }
+  }
+
+  function bloom(el, petals, size) {
+    const r = el.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'bloom';
+    f.setAttribute('aria-hidden', 'true');
+    f.style.cssText = `left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;--s:${size}`;
+    const hue = Math.random() * 360;
+    for (let i = 0; i < petals; i++) {
+      const p = document.createElement('i');
+      p.style.cssText = `--r:${i * 360 / petals}deg;--h:${hue + i * 15}`;
+      f.append(p);
+    }
+    document.body.append(f);
+    setTimeout(() => f.remove(), 1200);
   }
 
   function run() {
     if (!input.value.trim()) return show('', false);
     try {
-      input.value = format(evaluate(input.value));
-      show('', false);
+      const expr = input.value;
+      input.value = format(evaluate(expr));
+      show(`${expr} = ${input.value}`, false); // keeps the expression visible and announces the result
+      bloom(out, 12, 2.2);
     } catch (e) {
       show(e.message, true);
     }
@@ -58,11 +148,12 @@
     if (!b) return;
     const act = b.dataset.act;
     show('', false);
+    if (act !== 'eq') bloom(b, 6, 0.8);
     if (act === 'eq') run();
     else if (act === 'clear') { input.value = ''; show('', false); }
     else if (act === 'back') input.value = input.value.slice(0, -1);
     else input.value += b.textContent;
-    input.focus();
+    if (!touch) input.focus();
   });
 
   input.addEventListener('input', () => show('', false));
