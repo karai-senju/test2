@@ -1,11 +1,12 @@
 // Recursive-descent parser: no eval(), so typed input can never run code.
 function evaluate(src) {
   const s = src.replace(/\s+/g, '').replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
-  const tokens = s.match(/\d+\.?\d*|\.\d+|[-+*/^()]/g) || [];
+  const tokens = s.match(/(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?|[-+*/^()%]/g) || []; // 1e+21: format() output stays re-enterable
   if (!tokens.length || tokens.join('') !== s) throw new Error('Invalid input');
   let i = 0;
   const peek = () => tokens[i];
   const next = () => tokens[i++];
+  const isNum = (t) => t !== undefined && /[\d.]/.test(t[0]);
 
   function expr() {
     let v = term();
@@ -14,12 +15,16 @@ function evaluate(src) {
   }
   function term() {
     let v = unary();
-    while (peek() === '*' || peek() === '/') {
-      const op = next(), r = unary();
-      if (op === '/' && r === 0) throw new Error('Cannot divide by zero');
-      v = op === '*' ? v * r : v / r;
+    for (;;) {
+      const prev = tokens[i - 1], t = peek();
+      if (t === '*' || t === '/') {
+        const op = next(), r = unary();
+        if (op === '/' && r === 0) throw new Error('Cannot divide by zero');
+        v = op === '*' ? v * r : v / r;
+      } else if ((t === '(' && (prev === ')' || isNum(prev))) || (prev === ')' && isNum(t))) {
+        v *= unary(); // implicit multiplication: 2(3), (1)(2), (2)3
+      } else return v;
     }
-    return v;
   }
   function unary() {
     if (peek() === '-') { next(); return -unary(); }
@@ -27,7 +32,8 @@ function evaluate(src) {
     return power();
   }
   function power() {
-    const base = primary();
+    let base = primary();
+    if (peek() === '%') { next(); base /= 100; } // single postfix %, so 5%% stays invalid
     return peek() === '^' ? (next(), base ** unary()) : base; // right-associative, -2^2 = -4
   }
   function primary() {
@@ -37,12 +43,13 @@ function evaluate(src) {
       if (next() !== ')') throw new Error('Missing )');
       return v;
     }
-    if (t !== undefined && /[\d.]/.test(t[0])) return parseFloat(t);
+    if (isNum(t)) return parseFloat(t);
     throw new Error('Invalid input');
   }
 
   const v = expr();
   if (i < tokens.length) throw new Error('Invalid input');
+  if (Number.isNaN(v)) throw new Error('Undefined result');
   if (!Number.isFinite(v)) throw new Error('Result out of range');
   return v;
 }
