@@ -31,8 +31,16 @@
   button:active { filter: brightness(0.9); }
   button:focus-visible { outline: 2px solid var(--focus); }
   .op { background: var(--op); color: var(--op-text); }
-  .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 4; }
+  .eq { background: #ff8a5b; color: #1e1f26; grid-column: span 3; }
   .theme { display: block; margin: 0 0 12px auto; padding: 10px 14px; font-size: 1rem; }
+  .history { margin-top: 16px; color: var(--muted); }
+  .history h2 { margin: 0; font-size: 1rem; }
+  .history header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .history header button { padding: 6px 10px; font-size: .9rem; }
+  .history ul { max-height: 14em; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .history li button { width: 100%; margin-bottom: 6px; padding: 8px 12px; background: var(--field); font-size: 1rem; text-align: right; overflow-wrap: anywhere; }
+  .history li button:hover { transform: none; }
+  .history p { margin: 0; }
 
   /* Motion: never blocks input; .bloom is pointer-events: none. */
   body, .calc, input, button { transition: background-color .2s, color .2s, filter .15s, transform .15s cubic-bezier(.34, 1.56, .64, 1); }
@@ -83,8 +91,13 @@
     <button>4</button><button>5</button><button>6</button><button class="op" aria-label="Multiply">×</button>
     <button>1</button><button>2</button><button>3</button><button class="op" aria-label="Minus">−</button>
     <button>0</button><button>.</button><button class="op" aria-label="Power">^</button><button class="op" aria-label="Plus">+</button>
-    <button data-act="eq" class="eq">=</button>
+    <button class="op" aria-label="Percent">%</button><button data-act="eq" class="eq">=</button>
   </div>
+  <section class="history" aria-labelledby="hist-title">
+    <header><h2 id="hist-title">History</h2><button id="hist-clear" hidden>Clear history</button></header>
+    <p id="hist-empty">No history yet</p>
+    <ul id="hist-list"></ul>
+  </section>
 </main>
 <script src="calc.js"></script>
 <script>
@@ -131,6 +144,43 @@
     setTimeout(() => f.remove(), 1200);
   }
 
+  // History: newest first, [expr, result] pairs. Storage may be blocked, so it is best effort.
+  const histList = document.getElementById('hist-list');
+  const histEmpty = document.getElementById('hist-empty');
+  const histClear = document.getElementById('hist-clear');
+  let history = [];
+  try { history = JSON.parse(localStorage.calcHistory || '[]'); } catch {}
+  if (!Array.isArray(history)) history = [];
+
+  function saveHistory() {
+    try { localStorage.calcHistory = JSON.stringify(history); } catch {}
+    histList.replaceChildren(...history.map(([expr, result]) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.textContent = `${expr} = ${result}`;
+      b.setAttribute('aria-label', `${expr} = ${result}, use result`);
+      b.addEventListener('click', () => {
+        input.value = result;
+        fresh = true;
+        show('', false);
+        if (!touch) input.focus();
+      });
+      li.append(b);
+      return li;
+    }));
+    histEmpty.hidden = history.length > 0;
+    histClear.hidden = history.length === 0;
+  }
+  histClear.addEventListener('click', () => {
+    history = [];
+    saveHistory();
+    if (!touch) input.focus();
+  });
+
+  // Right after a successful "=", a digit, "." or "(" starts a new expression; operators continue from the result.
+  let fresh = false;
+  const startsNew = (ch) => /^[\d.(]$/.test(ch);
+
   function run() {
     if (!input.value.trim()) return show('', false);
     try {
@@ -138,6 +188,9 @@
       input.value = format(evaluate(expr));
       show(`${expr} = ${input.value}`, false); // keeps the expression visible and announces the result
       bloom(out, 12, 2.2);
+      history = [[expr, input.value], ...history].slice(0, 20);
+      saveHistory();
+      fresh = true;
     } catch (e) {
       show(e.message, true);
     }
@@ -147,6 +200,8 @@
     const b = e.target.closest('button');
     if (!b) return;
     const act = b.dataset.act;
+    if (fresh && startsNew(b.textContent)) input.value = '';
+    fresh = false;
     show('', false);
     if (act !== 'eq') bloom(b, 6, 0.8);
     if (act === 'eq') run();
@@ -156,12 +211,16 @@
     if (!touch) input.focus();
   });
 
-  input.addEventListener('input', () => show('', false));
+  input.addEventListener('input', () => { fresh = false; show('', false); });
 
   input.addEventListener('keydown', (e) => {
+    // Only when the caret is still at the end: if the user moved it, they are editing the result.
+    if (fresh && startsNew(e.key) && input.selectionStart === input.value.length) input.value = '';
     if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); run(); }
     if (e.key === 'Escape') { input.value = ''; show('', false); }
   });
+
+  saveHistory();
 </script>
 </body>
 </html>
